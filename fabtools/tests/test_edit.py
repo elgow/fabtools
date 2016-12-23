@@ -5,16 +5,24 @@ from pathlib2 import Path
 from fabric.api import run, sudo, local
 from tempfile import NamedTemporaryFile
 
+
 class EditTestCase(unittest.TestCase):
     def setUp(self):
         with NamedTemporaryFile(delete=False) as dat:
             self.textfile = Path(dat.name)
             dat.write('one\ntwo\nthree\nfour\nfive\nsix\n')
 
-
     def tearDown(self):
         self.textfile.unlink()
 
+    def test__choose_delim(self):
+        from fabtools.edit import _choose_delim
+
+        self.assertEqual(_choose_delim('hi'), '#')
+        self.assertEqual(_choose_delim('hi#'), '/')
+        self.assertEqual(_choose_delim('hi#/'), '@')
+        with self.assertRaises(RuntimeError):
+            _choose_delim('#/_@')
 
     def test__mk_selector(self):
         from fabtools.edit import _mk_selector
@@ -27,7 +35,6 @@ class EditTestCase(unittest.TestCase):
         # regex and delimiter
         self.assertEqual(_mk_selector(re.compile(_TEST_REGEX)),  '\\#' + _TEST_REGEX + '#')
 
-
     def test__mk_sed_cmd(self):
         from fabtools.edit import _mk_sed_cmd
         print str(Path)
@@ -36,36 +43,30 @@ class EditTestCase(unittest.TestCase):
 
         # op, file, start=None, end=None, opts=None, delim='+', *args, **kwargs):
 
-
-    def test_contains_line(self):
-        from fabtools.edit import contains_line
+    def test_find(self):
+        from fabtools.edit import find
         import re
 
-        self.assertTrue(contains_line('one', self.textfile, use_sudo=local))
-        self.assertFalse(contains_line('not one', self.textfile, use_sudo=local))
-        self.assertTrue(contains_line(re.compile('o[na]e'), self.textfile, use_sudo=local))
-        self.assertFalse(contains_line(re.compile('o..e'), self.textfile, use_sudo=local))
-        self.assertTrue(contains_line(re.compile('^two$'), self.textfile, use_sudo=local))
+        self.assertEquals(find('one', self.textfile, use_sudo=local), [1])
+        self.assertEqual(find('not one', self.textfile, use_sudo=local), [])
+        self.assertEqual(find(re.compile('t[whre]+[eo]'), self.textfile, use_sudo=local), [2,3])
+        self.assertEqual(find(re.compile('o..e'), self.textfile, use_sudo=local), [])
+        self.assertEqual(find(re.compile('^two$'), self.textfile, use_sudo=local), [2])
+        self.assertEqual(find('one\ntwo\nthree', self.textfile, multi_line=True, use_sudo=local), [6])
+        self.assertEqual(find('one\ntwo\nthree', self.textfile, multi_line=True, do_all=True, use_sudo=local), [6])
 
+    def test_prepend(self):
+        from fabtools.edit import add_line, find
+        text = 'hi there'
+        add_line(text, self.textfile, pat='three', op='i', use_sudo=local)
+        add_line(text, self.textfile, pat='five', op='i', use_sudo=local)
+        self.assertEqual(find(text, self.textfile, use_sudo=local), [3, 6])
 
-    def test_contains(self):
-        from fabtools.edit import contains
-        import re
+    def test_append(self):
+        from fabtools.edit import add_line, find
+        text = 'howdy'
+        add_line(text, self.textfile, pat='three', use_sudo=local)
+        self.assertEqual(find(text, self.textfile, use_sudo=local), [4])
 
-        self.assertTrue(contains('one', self.textfile, use_sudo=local))
-        self.assertFalse(contains('not one', self.textfile, use_sudo=local))
-        self.assertTrue(contains('one\ntwo\nthree', self.textfile, use_sudo=local))
-        self.assertTrue(contains(re.compile('t[whre\\n]+e'), self.textfile, use_sudo=local))
-        self.assertFalse(contains(re.compile('o..e'), self.textfile, use_sudo=local))
-
-
-    def test__choose_delim(self):
-        from fabtools.edit import _choose_delim
-
-        self.assertEqual(_choose_delim('hi'), '#')
-        self.assertEqual(_choose_delim('hi#'), '/')
-        self.assertEqual(_choose_delim('hi#/'), '@')
-        with self.assertRaises(RuntimeError):
-            _choose_delim('#/_@')
 
 
