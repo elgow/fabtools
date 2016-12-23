@@ -12,11 +12,11 @@ from fabric.api import *
 
 
 _IN_MEMORY = '1h;2,$H;$!d;g'  # sed magic to do in-memory processing for multi-line patterns
-_REGEX_TYPE = type(re.compile('foo'))
+_END = re.compile('$')
 _DELIM_CHARS = {'@', '#', '/', '_'}  # chars for address pattern delimiter auto-selection
 
 
-def find(pat, files, multi_line=False, do_all=False, use_sudo=False):
+def find(pat, files, multi_line=False, start=None, stop=None, do_all=False, use_sudo=False):
     """
     Locates line(s) that match the pattern, which cannot contain '\\n'. If multiple files are
     specified then they will be concatenated.
@@ -31,28 +31,28 @@ def find(pat, files, multi_line=False, do_all=False, use_sudo=False):
     cmd = '{sel}{op}'.format(
         sel=_mk_selector(pat),
         op=op)
-
-    res = _run_func(use_sudo)(_mk_sed_call(cmd, files, inmem=multi_line,  opts=['-n']))
+    lim_cmd = cmd if multi_line else _mk_limit_sed_cmd(cmd, start=start, stop=stop)
+    res = _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, inmem=multi_line,  opts=['-n']))
     return [int(n) for n in res.split('\n')] if res else []
 
 
-def append(text, files, pat='$', do_all=False, use_sudo=False):
-    return _add_line('a', text, files, pat=pat, do_all=do_all, use_sudo=use_sudo)
+def append(text, files, pat=_END, start=None, stop=None, do_all=False, use_sudo=False):
+    return _add_line('a', text, files, pat=pat, start=start, stop=stop, do_all=do_all, use_sudo=use_sudo)
 
 
-def prepend(text, files, pat='1', do_all=False, use_sudo=False):
-    return _add_line('i', text, files, pat=pat, do_all=do_all, use_sudo=use_sudo)
+def prepend(text, files, pat=1, start=None, stop=None, do_all=False, use_sudo=False):
+    return _add_line('i', text, files, pat=pat, start=start, stop=stop, do_all=do_all, use_sudo=use_sudo)
 
 
-def replace_line(text, files, pat, do_all=False, use_sudo=False):
-    return _add_line('c', text, files, pat=pat, do_all=do_all, use_sudo=use_sudo)
+def replace_line(text, files, pat, start=None, stop=None, do_all=False, use_sudo=False):
+    return _add_line('c', text, files, pat=pat, start=start, stop=stop, do_all=do_all, use_sudo=use_sudo)
 
 
-def delete(pat, files, end_pat=None, do_all=False, use_sudo=False):
+def delete(pat, files, start=None, stop=None, do_all=False, use_sudo=False):
     pass
 
 
-def replace(pat, files, text, do_all=False, use_sudo=False):
+def replace(pat, files, text, start=None, stop=None, do_all=False, use_sudo=False):
     """
     Search for text matching the pattern, which may (span multiple lines by using \\n)
     and replace it with the given text, which may contain sed backreferences (\\1, etc.)
@@ -101,7 +101,7 @@ def _mk_selector(sel):
     elif type(sel) is str:
         pat = re.escape(sel)
         return '\\{0}{1}{0}'.format(_choose_delim(pat), pat)
-    elif type(sel) is _REGEX_TYPE:
+    elif type(sel) is type(_END):
         pat = sel.pattern
         return '\\{0}{1}{0}'.format(_choose_delim(pat), pat)
     else:
@@ -120,12 +120,13 @@ def _choose_delim(pat):
     return sorted(list(delims))[0]
 
 
-def _mk_generic_sed_cmd(op, args=None, start=None, end=None):
-    cmd = '{start}{end}{op}{args}'.format(
-        start=_mk_selector(start),
-        end=',%s' % _mk_selector(end) if end else '',
+def _mk_limit_sed_cmd(op, args=None, start=None, stop=None):
+    cmd = '{start}{stop}{{{op}{args}}}'.format(
+        start=_mk_selector(start) if start else '1',
+        stop=',%s' % (_mk_selector(stop) if stop else '$',),
         op=op,
         args=args if args else '')
+    return cmd
 
 
 def _mk_sed_call(cmd, files, opts=None, inmem=False,  **kwargs):
@@ -152,7 +153,7 @@ def _mk_sed_call(cmd, files, opts=None, inmem=False,  **kwargs):
     )
 
 
-def _add_line(op, text, files, pat='$', do_all=False, use_sudo=False):
+def _add_line(op, text, files, pat=_END, start=None, stop=None, do_all=False, use_sudo=False):
     """
     Append text after line matching pattern [defaults to last line]. If do_all is true then every line matching
     the pattern will be processed. This function acts on each specified file independently and in-place.
@@ -167,6 +168,7 @@ def _add_line(op, text, files, pat='$', do_all=False, use_sudo=False):
     assert op in list('aic')
     cmd = "%s%s \\\n%s\n" % (_mk_selector(pat), op, text) if do_all else \
            "%s{%s \\\n%s\n; b L}; b; :L  {n; b L}" % (_mk_selector(pat), op, text)
-    _run_func(use_sudo)(_mk_sed_call(cmd, files, opts=['-i'],  do_all=do_all, use_sudo=use_sudo))
+    lim_cmd = _mk_limit_sed_cmd(cmd, start=start, stop=stop)
+    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i'],  do_all=do_all, use_sudo=use_sudo))
 
 
