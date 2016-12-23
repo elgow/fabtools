@@ -35,13 +35,15 @@ class EditTestCase(unittest.TestCase):
         # regex and delimiter
         self.assertEqual(_mk_selector(re.compile(_TEST_REGEX)),  '\\#' + _TEST_REGEX + '#')
 
-    def test__mk_sed_cmd(self):
-        from fabtools.edit import _mk_sed_cmd
-        print str(Path)
 
-        self.assertEqual(_mk_sed_cmd('a', self.textfile, 'FFFF'), '')
+    # def test__mk_sed_call(self):
+    #     from fabtools.edit import _mk_sed_call
+    #     print str(Path)
+    #
+    #     self.assertEqual(_mk_sed_call('a', self.textfile, 'FFFF'), '')
+    #
+    #     # op, file, start=None, end=None, opts=None, delim='+', *args, **kwargs):
 
-        # op, file, start=None, end=None, opts=None, delim='+', *args, **kwargs):
 
     def test_find(self):
         from fabtools.edit import find
@@ -49,23 +51,24 @@ class EditTestCase(unittest.TestCase):
 
         self.assertEquals(find('one', self.textfile, use_sudo=local), [1])
         self.assertEqual(find('not one', self.textfile, use_sudo=local), [])
-        self.assertEqual(find(re.compile('t[whre]+[eo]'), self.textfile, use_sudo=local), [2,3])
+        self.assertEqual(find(re.compile('t[whre]+[eo]'), self.textfile, do_all=True, use_sudo=local), [2,3])
         self.assertEqual(find(re.compile('o..e'), self.textfile, use_sudo=local), [])
         self.assertEqual(find(re.compile('^two$'), self.textfile, use_sudo=local), [2])
+        self.assertEqual(find('one\ntwo\nthree', self.textfile,use_sudo=local), [])
         self.assertEqual(find('one\ntwo\nthree', self.textfile, multi_line=True, use_sudo=local), [6])
         self.assertEqual(find('one\ntwo\nthree', self.textfile, multi_line=True, do_all=True, use_sudo=local), [6])
 
     def test_prepend(self):
-        from fabtools.edit import add_line, find
+        from fabtools.edit import prepend, find
         text = 'hi there'
-        add_line(text, self.textfile, pat='three', op='i', use_sudo=local)
-        add_line(text, self.textfile, pat='five', op='i', use_sudo=local)
-        self.assertEqual(find(text, self.textfile, use_sudo=local), [3, 6])
+        prepend(text, self.textfile, pat='three', use_sudo=local)
+        prepend(text, self.textfile, pat='five', use_sudo=local)
+        self.assertEqual(find(text, self.textfile, do_all=True, use_sudo=local), [3, 6])
 
     def test_append(self):
-        from fabtools.edit import add_line, find
+        from fabtools.edit import append, find
         text = 'howdy'
-        add_line(text, self.textfile, pat='three', use_sudo=local)
+        append(text, self.textfile, pat='three', use_sudo=local)
         self.assertEqual(find(text, self.textfile, use_sudo=local), [4])
 
 

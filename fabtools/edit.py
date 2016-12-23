@@ -16,7 +16,7 @@ _REGEX_TYPE = type(re.compile('foo'))
 _DELIM_CHARS = {'@', '#', '/', '_'}  # chars for address pattern delimiter auto-selection
 
 
-def find(pat, files, multi_line=False, do_all=True, use_sudo=False):
+def find(pat, files, multi_line=False, do_all=False, use_sudo=False):
     """
     Locates line(s) that match the pattern, which cannot contain '\\n'. If multiple files are
     specified then they will be concatenated.
@@ -36,29 +36,19 @@ def find(pat, files, multi_line=False, do_all=True, use_sudo=False):
     return [int(n) for n in res.split('\n')] if res else []
 
 
-def add_line(text, files, pat='$', op='a', do_all=False, use_sudo=False):
-    """
-    Append text after line matching pattern [defaults to last line]. If do_all is true then every line matching
-    the pattern will be processed. This function acts on each specified file independently and in-place.
-    :param text: text to insert
-    :param files: files to process, separately and in-place
-    :param pat: pattern to match
-    :param bak: if not empty then a backup file will be created with this extension.
-    :param do_all: prepend text before every occurrance of the pattern
-    :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
-    :return:
-    """
-    assert op in list('aic')
-    cmd = "%s%s \\\n%s\n" % (_mk_selector(pat), op, text) if do_all else \
-           "%s{%s \\\n%s\n; b L}; b; :L  {n; b L}" % (_mk_selector(pat), op, text)
-    _run_func(use_sudo)(_mk_sed_call(cmd, files, opts=['-i'],  do_all=do_all, use_sudo=use_sudo))
+def append(text, files, pat='$', do_all=False, use_sudo=False):
+    return _add_line('a', text, files, pat=pat, do_all=do_all, use_sudo=use_sudo)
+
+
+def prepend(text, files, pat='1', do_all=False, use_sudo=False):
+    return _add_line('i', text, files, pat=pat, do_all=do_all, use_sudo=use_sudo)
+
+
+def replace_line(text, files, pat, do_all=False, use_sudo=False):
+    return _add_line('c', text, files, pat=pat, do_all=do_all, use_sudo=use_sudo)
 
 
 def delete(pat, files, end_pat=None, do_all=False, use_sudo=False):
-    pass
-
-
-def replace_line(pat, files, text, do_all=False, use_sudo=False):
     pass
 
 
@@ -74,6 +64,9 @@ def replace(pat, files, text, do_all=False, use_sudo=False):
     """
     pass
 
+
+
+####### Internal functions ###########
 
 def _captured_local(*args, **kwargs):
     return local(*args, capture=True, **kwargs)
@@ -134,17 +127,6 @@ def _mk_generic_sed_cmd(op, args=None, start=None, end=None):
         op=op,
         args=args if args else '')
 
-def _mk_do_once_cmd(pat, op, text):
-    """
-    Create a sed command to execute an a, i, or c command just once rather than for every matching line.
-    :param pat: selection pattern (line number, literal string, or compiled regex)
-    :param op: 'a', 'i', or 'c'
-    :param text: text to be inserted by sed
-    :return: sed command suitable for use in sed -e '<cmd>'
-    """
-    assert op in list('aic')
-    return "%s{%s \\\n%s\n; b L}; b; :L  {n; b L}" % (_mk_selector(pat), op, text)
-
 
 def _mk_sed_call(cmd, files, opts=None, inmem=False,  **kwargs):
     """
@@ -168,3 +150,23 @@ def _mk_sed_call(cmd, files, opts=None, inmem=False,  **kwargs):
         cmd=cmd,
         files=' '.join([quote(str(x)) for x in files])
     )
+
+
+def _add_line(op, text, files, pat='$', do_all=False, use_sudo=False):
+    """
+    Append text after line matching pattern [defaults to last line]. If do_all is true then every line matching
+    the pattern will be processed. This function acts on each specified file independently and in-place.
+    :param text: text to insert
+    :param files: files to process, separately and in-place
+    :param pat: pattern to match
+    :param bak: if not empty then a backup file will be created with this extension.
+    :param do_all: prepend text before every occurrance of the pattern
+    :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
+    :return:
+    """
+    assert op in list('aic')
+    cmd = "%s%s \\\n%s\n" % (_mk_selector(pat), op, text) if do_all else \
+           "%s{%s \\\n%s\n; b L}; b; :L  {n; b L}" % (_mk_selector(pat), op, text)
+    _run_func(use_sudo)(_mk_sed_call(cmd, files, opts=['-i'],  do_all=do_all, use_sudo=use_sudo))
+
+
