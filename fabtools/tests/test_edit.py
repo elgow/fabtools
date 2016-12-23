@@ -2,15 +2,27 @@ from __future__ import absolute_import, print_function
 import unittest
 import re
 from pathlib2 import Path
-from fabric.api import run, sudo, local
+from fabric.api import *
 from tempfile import NamedTemporaryFile
 
 
-class TopLimitMixin(object):
+
+class Mixin(object):
     def __init__(self, *args):
         unittest.TestCase.__init__(self, *args)
+
+
+class TopLimitMixin(Mixin):
+    def _set_limits(self):
         self.start = None
         self.stop = 3
+
+class BottomLimitMixin(Mixin):
+
+    def _set_limits(self):
+        self.start = re.compile('thr(e)+')
+        self.stop = None
+
 
 
 class UtilTestCase(unittest.TestCase):
@@ -69,26 +81,29 @@ class EditTestCase(unittest.TestCase):
         from fabtools.edit import find
         import re
 
-        self.assertEquals(find('one', self.textfile, use_sudo=local), [1])
-        self.assertEquals(find('three', self.textfile, start='two', stop=5, use_sudo=local), [3])
-        self.assertEquals(find('three', self.textfile, start='t.o', stop=5, use_sudo=local), [])
-        self.assertEquals(find('three', self.textfile, start=4, stop="five", use_sudo=local), [])
-        self.assertEquals(find('five', self.textfile, start=re.compile('f[ou]+r'), use_sudo=local), [5])
+        self.assertEquals(find('one', self.textfile, start=self.start, stop=self.stop, use_sudo=local),
+                          [1] if not self.start else [])
+        self.assertEquals(find('three', self.textfile, start=self.start, stop=self.stop, use_sudo=local), [3])
+        self.assertEquals(find('five', self.textfile, start=self.start, stop=self.stop, use_sudo=local),
+                          [5] if not self.stop else [])
 
-        self.assertEqual(find('not one', self.textfile, use_sudo=local), [])
-        self.assertEqual(find(re.compile('t[whre]+[eo]'), self.textfile, do_all=True, use_sudo=local), [2,3])
-        self.assertEqual(find(re.compile('o..e'), self.textfile, use_sudo=local), [])
-        self.assertEqual(find(re.compile('^two$'), self.textfile, use_sudo=local), [2])
-        self.assertEqual(find('one\ntwo\nthree', self.textfile,use_sudo=local), [])
+        self.assertEqual(find('not one', self.textfile, start=self.start, stop=self.stop, use_sudo=local), [])
+        self.assertEqual(find(re.compile('t[whre]+[eo]'), self.textfile, start=self.start, stop=self.stop,
+                              do_all=True, use_sudo=local), [2,3] if not self.start else [3])
+        self.assertEqual(find(re.compile('o..e'), self.textfile, start=self.start, stop=self.stop, use_sudo=local), [])
+        self.assertEqual(find(re.compile('^two$'), self.textfile, start=self.start, stop=self.stop, use_sudo=local),
+                         [2] if not self.start else [])
+        self.assertEqual(find('one\ntwo\nthree', self.textfile, start=self.start, stop=self.stop, use_sudo=local), [])
         self.assertEqual(find('one\ntwo\nthree', self.textfile, multi_line=True, use_sudo=local), [7])
         self.assertEqual(find('one\ntwo\nthree', self.textfile, multi_line=True, do_all=True, use_sudo=local), [7])
 
     def test_prepend(self):
         from fabtools.edit import prepend, find
         text = 'hi there'
-        prepend(text, self.textfile, pat='three', use_sudo=local)
-        prepend(text, self.textfile, pat='five', use_sudo=local)
-        self.assertEqual(find(text, self.textfile, do_all=True, use_sudo=local), [3, 6])
+        prepend(text, self.textfile, pat='two', start=self.start, stop=self.stop, use_sudo=local)
+        prepend(text, self.textfile, pat='five', start=self.start, stop=self.stop, use_sudo=local)
+        self.assertEqual(find(text, self.textfile, start=self.start, stop=self.stop, do_all=True, use_sudo=local),
+                         [2] if self.stop else [5] if self.start else [2, 6])
         #"Failed on text='{text}', limit={limit}, pat={pat}".format(text, str(limit), str(pat)))
 
     def test_append(self):
@@ -98,13 +113,20 @@ class EditTestCase(unittest.TestCase):
         self.assertEqual(find(text, self.textfile, do_all=True, use_sudo=local), [4])
 
 
-class LimitedEditTestCase(TopLimitMixin, EditTestCase):
+class TopLimitedEditTestCase(TopLimitMixin, EditTestCase):
+    pass
+
+class BottomLimitedEditTestCase(BottomLimitMixin, EditTestCase):
     pass
 
 def suite():
     return unittest.TestSuite([
         unittest.TestLoader().loadTestsFromTestCase(UtilTestCase),
         unittest.TestLoader().loadTestsFromTestCase(EditTestCase),
-        unittest.TestLoader().loadTestsFromTestCase(LimitedEditTestCase),
+        unittest.TestLoader().loadTestsFromTestCase(TopLimitedEditTestCase),
+        unittest.TestLoader().loadTestsFromTestCase(BottomLimitedEditTestCase),
     ])
 
+@task
+def do_all_tests():
+    pass
