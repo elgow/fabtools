@@ -121,6 +121,14 @@ def _choose_delim(pat):
 
 
 def _mk_limit_sed_cmd(op, args=None, start=None, stop=None):
+    """
+    Create a sed command that wraps any other sed command in start,stop limits
+    :param op: sed command to be wrapped
+    :param args: optional more of sed command
+    :param start: start limit (line number, literal string, or regex). Defaults to 1.
+    :param stop: start limit (line number, literal string, or regex). Defaults to end of file.
+    :return: wrapped sed command
+    """
     cmd = '{start}{stop}{{{op}{args}}}'.format(
         start=_mk_selector(start) if start else '1',
         stop=',%s' % (_mk_selector(stop) if stop else '$',),
@@ -157,7 +165,7 @@ def _add_line(op, text, files, pat=_END, start=None, stop=None, do_all=False, us
     """
     Append text after line matching pattern [defaults to last line]. If do_all is true then every line matching
     the pattern will be processed. This function acts on each specified file independently and in-place.
-    :param text: text to insert
+    :param text: text to insert. May contain \n, so block of lines is OK. Sed will process '\' escaped chars.
     :param files: files to process, separately and in-place
     :param pat: pattern to match
     :param bak: if not empty then a backup file will be created with this extension.
@@ -166,8 +174,9 @@ def _add_line(op, text, files, pat=_END, start=None, stop=None, do_all=False, us
     :return:
     """
     assert op in list('aic')
-    cmd = "%s%s \\\n%s\n" % (_mk_selector(pat), op, text) if do_all else \
-           "%s{%s \\\n%s\n; b L}; b; :L  {n; b L}" % (_mk_selector(pat), op, text)
+    escaped_text = text.replace('\n', '\\n')
+    cmd = "%s%s \\\n%s\n" % (_mk_selector(pat), op, escaped_text) if do_all else \
+           "%s{%s \\\n%s\n; b L}; b; :L  {n; b L}" % (_mk_selector(pat), op, escaped_text)
     lim_cmd = _mk_limit_sed_cmd(cmd, start=start, stop=stop)
     _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i'],  do_all=do_all, use_sudo=use_sudo))
 
