@@ -13,7 +13,7 @@ from fabric.api import *
 
 _IN_MEMORY = '1h;2,$H;$!d;g'  # sed magic to do in-memory processing for multi-line pattern search
 _END = re.compile('$')
-_DELIM_CHARS = {'@', '#', '/', '_'}  # chars for address pattern delimiter auto-selection
+_DELIM_CHARS = {'@', '#', '/', '_', '~', '`'}  # chars for address pattern delimiter auto-selection
 
 
 def find(pat, files,  start=None, stop=None, multi_line=False, do_all=False, use_sudo=False):

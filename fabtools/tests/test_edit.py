@@ -52,7 +52,7 @@ class UtilTestCase(unittest.TestCase):
         self.assertEqual(_choose_delim('hi#'), '/')
         self.assertEqual(_choose_delim('hi#/'), '@')
         with self.assertRaises(RuntimeError):
-            _choose_delim('#/_@')
+            _choose_delim('#/_@~`')
 
     def test_mk_selector(self):
         from fabtools.edit import _mk_selector
