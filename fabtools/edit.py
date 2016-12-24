@@ -11,17 +11,19 @@ from pathlib2 import Path
 from fabric.api import *
 
 
-_IN_MEMORY = '1h;2,$H;$!d;g'  # sed magic to do in-memory processing for multi-line patterns
+_IN_MEMORY = '1h;2,$H;$!d;g'  # sed magic to do in-memory processing for multi-line pattern search
 _END = re.compile('$')
 _DELIM_CHARS = {'@', '#', '/', '_'}  # chars for address pattern delimiter auto-selection
 
 
-def find(pat, files, multi_line=False, start=None, stop=None, do_all=False, use_sudo=False):
+def find(pat, files,  start=None, stop=None, multi_line=False, do_all=False, use_sudo=False):
     """
     Locates line(s) that match the pattern, which cannot contain '\\n'. If multiple files are
     specified then they will be concatenated.
-    :param pat: literal string or compiled regex
-    :param files: files to search
+    :param pat: search pattern (line number, literal string or compiled regex)
+    :param files: files to search. Multiple files will be concatenated.
+    :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
+    :param stop: Limit processing to stop at this pattern (line number, literal string or compiled regex)
     :param multi_line: treat entire file as one line so pattern may contain '\n'
     :param do_all: find all lines w/ pattern. No effect in multi_line mode.
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
@@ -37,32 +39,112 @@ def find(pat, files, multi_line=False, start=None, stop=None, do_all=False, use_
 
 
 def append(text, files, pat=_END, start=None, stop=None, do_all=False, use_sudo=False):
-    return _add_line('a', text, files, pat=pat, start=start, stop=stop, do_all=do_all, use_sudo=use_sudo)
+    """
+    Append text after the pattern, or at end of file by default
+    :param text: text to insert.  May contain \n to insert multi-line block
+    :param files: files to search. Mulitple files will be processed separately
+    :param pat: search pattern (line number, literal string or compiled regex) [default = eof]
+    :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
+    :param stop: Limit processing to stop at this pattern (line number, literal string or compiled regex)
+    :param do_all: process all lines w/ pattern.
+    :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
+    """
+    _add_line('a', text, files, pat=pat, start=start, stop=stop, do_all=do_all, use_sudo=use_sudo)
+
 
 
 def prepend(text, files, pat=1, start=None, stop=None, do_all=False, use_sudo=False):
-    return _add_line('i', text, files, pat=pat, start=start, stop=stop, do_all=do_all, use_sudo=use_sudo)
+    """
+    Prepend text before the pattern, or at beginning of file by default
+    :param text: text to insert.  May contain \n to insert multi-line block
+    :param files: files to search. Mulitple files will be processed separately.
+    :param pat: search pattern (line number, literal string or compiled regex) [default = eof]
+    :param files: files to search
+    :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
+    :param stop: Limit processing to stop at this pattern (line number, literal string or compiled regex)
+    :param do_all: process all lines w/ pattern.
+    :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
+    """
+    _add_line('i', text, files, pat=pat, start=start, stop=stop, do_all=do_all, use_sudo=use_sudo)
 
 
-def replace_line(text, files, pat, start=None, stop=None, do_all=False, use_sudo=False):
-    return _add_line('c', text, files, pat=pat, start=start, stop=stop, do_all=do_all, use_sudo=use_sudo)
+def replace_line(pat, text, files, start=None, stop=None, do_all=False, use_sudo=False):
+    """
+    Replace line(s) that match the pattern with specified text
+    :param pat: search pattern (line number, literal string or compiled regex) [required]
+    :param text: text to replace with.  May contain \n to insert multi-line block
+    :param files: files to search. Mulitple files will be processed separately.
+    :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
+    :param stop: Limit processing to stop at this pattern (line number, literal string or compiled regex)
+    :param do_all: process all lines w/ pattern.
+    :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
+    """
+    _add_line('c', text, files, pat=pat, start=start, stop=stop, do_all=do_all, use_sudo=use_sudo)
 
 
 def delete(pat, files, start=None, stop=None, do_all=False, use_sudo=False):
-    pass
-
-
-def replace(pat, files, text, start=None, stop=None, do_all=False, use_sudo=False):
     """
-    Search for text matching the pattern, which may (span multiple lines by using \\n)
+    Delete lines that match the pattern
+    :param pat: search pattern (line number, literal string or compiled regex) [required]
+    :param files: files to process. Mulitple files will be processed separately.
+    :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
+    :param stop: Limit processing to stop at this pattern (line number, literal string or compiled regex)
+    :param do_all: process all lines w/ pattern.
+    :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
+    """
+    cmd = "%sd" % (_mk_selector(pat),) if do_all else \
+           "%s{d; b L}; b; :L  {n; b L}" % (_mk_selector(pat),)
+    lim_cmd = _mk_limit_sed_cmd(cmd, start=start, stop=stop)
+    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i', '-s'], do_all=do_all, use_sudo=use_sudo))
+
+
+def replace(pat, text, files, start=None, stop=None, do_all=False, use_sudo=False):
+    """
+    Search for text matching the pattern, which may (span multiple lines by using \\n in multi-line mode)
     and replace it with the given text, which may contain sed backreferences (\\1, etc.)
-    :param pat: literal string or compiled regex
-    :param text: text to insert
-    :param do_all: prepend text before every occurrance of the pattern
+    This differs from replace_line in that it only replaces the match text, not the whole line.
+    :param pat: line_number, literal string or compiled regex
+    :param text: text to replace
+    :param files: files to process. Multiple files will be processed separately
+    :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
+    :param stop: Limit processing to stop at this pattern (line number, literal string or compiled regex)
+    :param do_all: replace every occurrance of the pattern
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
     :return:
     """
-    pass
+    escaped_text = text.replace('\n', '\\n')
+    if type(pat) is str:
+        sel = re.escape(pat)
+    elif type(pat) is type(_END):
+        sel = pat.pattern
+    else:
+        raise RuntimeError("Replace pattern must be string or regex, not %s" % str(pat))
+
+    cmd = "{addr}s{delim}{sel}{delim}{text}{delim}g".format(
+            addr=_mk_selector(pat), delim=_choose_delim(sel+text), sel=sel, text=escaped_text) if do_all \
+         else "{addr}{{s{delim}{sel}{delim}{text}{delim}; b L}}; b; :L  {{n; b L}}".format(
+            addr=_mk_selector(pat), delim=_choose_delim(sel + text), sel=sel, text=escaped_text)
+    lim_cmd = _mk_limit_sed_cmd(cmd, start=start, stop=stop)
+    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i', '-s'],  do_all=do_all, use_sudo=use_sudo))
+
+
+def capture(pat, files, start=None, stop=None, multi_line=False, do_all=False, use_sudo=False):
+    """
+    Find and return the text selected by the pattern within start/stop limits
+    :param pat: line number, literal string or compiled regex
+    :param files: files to process. Multiple files will be concatenated
+    :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
+    :param stop: Limit processing to stop at this pattern (line number, literal string or compiled regex)
+    :param multi_line: treat entire file as one line so pattern may contain '\n'
+    :param do_all: find all lines w/ pattern. No effect in multi_line mode. [defaults to False, so only gets first]
+    :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
+    :return: selected text
+    """
+    op = 'p' if do_all else '{p;q}'
+    cmd = '%s%s' % (_mk_selector(pat), op)
+    lim_cmd = cmd if multi_line else _mk_limit_sed_cmd(cmd, start=start, stop=stop)
+    res = _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, inmem=multi_line,  opts=['-n']))
+    return res
 
 
 
@@ -178,6 +260,6 @@ def _add_line(op, text, files, pat=_END, start=None, stop=None, do_all=False, us
     cmd = "%s%s \\\n%s\n" % (_mk_selector(pat), op, escaped_text) if do_all else \
            "%s{%s \\\n%s\n; b L}; b; :L  {n; b L}" % (_mk_selector(pat), op, escaped_text)
     lim_cmd = _mk_limit_sed_cmd(cmd, start=start, stop=stop)
-    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i'],  do_all=do_all, use_sudo=use_sudo))
+    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i', '-s'],  do_all=do_all, use_sudo=use_sudo))
 
 
