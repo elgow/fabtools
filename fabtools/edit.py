@@ -18,8 +18,8 @@ _DELIM_CHARS = {'@', '#', '/', '_'}  # chars for address pattern delimiter auto-
 
 def find(pat, files,  start=None, stop=None, multi_line=False, do_all=False, use_sudo=False):
     """
-    Locates line(s) that match the pattern, which cannot contain '\\n'. If multiple files are
-    specified then they will be concatenated.
+    Locates line(s) that match the pattern. In multi-line mode the pattern may span lines with \n, but the
+    value returned will always be the total number of lines in the file.
     :param pat: search pattern (line number, literal string or compiled regex)
     :param files: files to search. Multiple files will be concatenated.
     :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
@@ -27,7 +27,7 @@ def find(pat, files,  start=None, stop=None, multi_line=False, do_all=False, use
     :param multi_line: treat entire file as one line so pattern may contain '\n'
     :param do_all: find all lines w/ pattern. No effect in multi_line mode.
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
-    :return: list of line number(s) where found, empty list if not found
+    :return: list of line number(s) where pattern was found, empty list if not found
     """
     op = '=' if do_all else '{=;q}'
     cmd = '{sel}{op}'.format(
@@ -160,6 +160,12 @@ def capture(pat, files, start=None, stop=None, multi_line=False, do_all=False, u
 ####### Internal functions ###########
 
 def _captured_local(*args, **kwargs):
+    """
+    Wrapper on fabric local() to capture the output to match the behavior of run() and sudo()
+    :param args:
+    :param kwargs:
+    :return:
+    """
     return local(*args, capture=True, **kwargs)
 
 

@@ -116,6 +116,10 @@ class EditTestCase(unittest.TestCase):
         self.assertEqual(find('one\ntwo\nthree', self.textfile, start=self.start, stop=self.stop, use_sudo=local), [])
         self.assertEqual(find('one\ntwo\nthree', self.textfile, multi_line=True, use_sudo=local), [7])
         self.assertEqual(find('one\ntwo\nthree', self.textfile, multi_line=True, do_all=True, use_sudo=local), [7])
+        # multi-file case
+        self.assertEqual(find('three', [self.textfile, self.textfile], start=self.start, stop=self.stop,
+                              do_all=True, use_sudo=local),
+                         ([3] if not self.start else []) + ([10] if not self.stop else []))
 
     def test_prepend(self):
         from fabtools.edit import prepend, find
