@@ -38,7 +38,7 @@ def find(pat, files,  start=None, stop=None, multi_line=False, do_all=False, use
     return [int(n) for n in res.split('\n')] if res else []
 
 
-def append(text, files, pat=_END, start=None, stop=None, do_all=False, use_sudo=False):
+def append(text, files, pat=_END, start=None, stop=None, do_all=False, backup=None, use_sudo=False):
     """
     Append text after the pattern, or at end of file by default
     :param text: text to insert.  May contain \n to insert multi-line block
@@ -49,11 +49,11 @@ def append(text, files, pat=_END, start=None, stop=None, do_all=False, use_sudo=
     :param do_all: process all lines w/ pattern.
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
     """
-    _add_line('a', text, files, pat=pat, start=start, stop=stop, do_all=do_all, use_sudo=use_sudo)
+    _add_line('a', text, files, pat=pat, start=start, stop=stop, do_all=do_all, backup=backup, use_sudo=use_sudo)
 
 
 
-def prepend(text, files, pat=1, start=None, stop=None, do_all=False, use_sudo=False):
+def prepend(text, files, pat=1, start=None, stop=None, do_all=False, backup=None, use_sudo=False):
     """
     Prepend text before the pattern, or at beginning of file by default
     :param text: text to insert.  May contain \n to insert multi-line block
@@ -65,10 +65,10 @@ def prepend(text, files, pat=1, start=None, stop=None, do_all=False, use_sudo=Fa
     :param do_all: process all lines w/ pattern.
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
     """
-    _add_line('i', text, files, pat=pat, start=start, stop=stop, do_all=do_all, use_sudo=use_sudo)
+    _add_line('i', text, files, pat=pat, start=start, stop=stop, do_all=do_all, backup=backup, use_sudo=use_sudo)
 
 
-def replace_line(pat, text, files, start=None, stop=None, do_all=False, use_sudo=False):
+def replace_line(pat, text, files, start=None, stop=None, do_all=False, backup=None, use_sudo=False):
     """
     Replace line(s) that match the pattern with specified text
     :param pat: search pattern (line number, literal string or compiled regex) [required]
@@ -79,10 +79,10 @@ def replace_line(pat, text, files, start=None, stop=None, do_all=False, use_sudo
     :param do_all: process all lines w/ pattern.
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
     """
-    _add_line('c', text, files, pat=pat, start=start, stop=stop, do_all=do_all, use_sudo=use_sudo)
+    _add_line('c', text, files, pat=pat, start=start, stop=stop, do_all=do_all, backup=backup, use_sudo=use_sudo)
 
 
-def delete(pat, files, start=None, stop=None, do_all=False, use_sudo=False):
+def delete(pat, files, start=None, stop=None, do_all=False, backup=None, use_sudo=False):
     """
     Delete lines that match the pattern
     :param pat: search pattern (line number, literal string or compiled regex) [required]
@@ -92,13 +92,14 @@ def delete(pat, files, start=None, stop=None, do_all=False, use_sudo=False):
     :param do_all: process all lines w/ pattern.
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
     """
+    suffix = quote(backup) if backup else ''
     cmd = "%sd" % (_mk_selector(pat),) if do_all else \
            "%s{d; b L}; b; :L  {n; b L}" % (_mk_selector(pat),)
     lim_cmd = _mk_limit_sed_cmd(cmd, start=start, stop=stop)
-    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i', '-s'], do_all=do_all, use_sudo=use_sudo))
+    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i%s' % (suffix,), '-s'], do_all=do_all, use_sudo=use_sudo))
 
 
-def replace(pat, text, files, start=None, stop=None, do_all=False, use_sudo=False):
+def replace(pat, text, files, start=None, stop=None, do_all=False, backup=None, use_sudo=False):
     """
     Search for text matching the pattern, which may (span multiple lines by using \\n in multi-line mode)
     and replace it with the given text, which may contain sed backreferences (\\1, etc.)
@@ -113,6 +114,8 @@ def replace(pat, text, files, start=None, stop=None, do_all=False, use_sudo=Fals
     :return:
     """
     escaped_text = text.replace('\n', '\\n')
+    suffix = quote(backup) if backup else ''
+
     if type(pat) is str:
         sel = re.escape(pat)
     elif type(pat) is type(_END):
@@ -125,7 +128,8 @@ def replace(pat, text, files, start=None, stop=None, do_all=False, use_sudo=Fals
          else "{addr}{{s{delim}{sel}{delim}{text}{delim}; b L}}; b; :L  {{n; b L}}".format(
             addr=_mk_selector(pat), delim=_choose_delim(sel + text), sel=sel, text=escaped_text)
     lim_cmd = _mk_limit_sed_cmd(cmd, start=start, stop=stop)
-    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i', '-s'],  do_all=do_all, use_sudo=use_sudo))
+    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i%s' % (suffix,), '-s'],
+                                     do_all=do_all, use_sudo=use_sudo))
 
 
 def capture(pat, files, start=None, stop=None, multi_line=False, do_all=False, use_sudo=False):
@@ -243,7 +247,7 @@ def _mk_sed_call(cmd, files, opts=None, inmem=False,  **kwargs):
     )
 
 
-def _add_line(op, text, files, pat=_END, start=None, stop=None, do_all=False, use_sudo=False):
+def _add_line(op, text, files, pat=_END, start=None, stop=None, do_all=False, backup=None, use_sudo=False):
     """
     Append text after line matching pattern [defaults to last line]. If do_all is true then every line matching
     the pattern will be processed. This function acts on each specified file independently and in-place.
@@ -257,9 +261,10 @@ def _add_line(op, text, files, pat=_END, start=None, stop=None, do_all=False, us
     """
     assert op in list('aic')
     escaped_text = text.replace('\n', '\\n')
+    suffix = quote(backup) if backup else ''
     cmd = "%s%s \\\n%s\n" % (_mk_selector(pat), op, escaped_text) if do_all else \
            "%s{%s \\\n%s\n; b L}; b; :L  {n; b L}" % (_mk_selector(pat), op, escaped_text)
     lim_cmd = _mk_limit_sed_cmd(cmd, start=start, stop=stop)
-    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i', '-s'],  do_all=do_all, use_sudo=use_sudo))
+    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i%s' % suffix, '-s'],  do_all=do_all, use_sudo=use_sudo))
 
 
