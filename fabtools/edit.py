@@ -42,11 +42,12 @@ def append(text, files, pat=_END, start=None, stop=None, do_all=False, backup=No
     """
     Append text after the pattern, or at end of file by default
     :param text: text to insert.  May contain \n to insert multi-line block
-    :param files: files to search. Mulitple files will be processed separately
+    :param files: files to process. Mulitple files will be processed separately
     :param pat: search pattern (line number, literal string or compiled regex) [default = eof]
     :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
     :param stop: Limit processing to stop at this pattern (line number, literal string or compiled regex)
     :param do_all: process all lines w/ pattern.
+    :param backup: if specified then a backup file will be created with this suffix appended to the name
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
     """
     _add_line('a', text, files, pat=pat, start=start, stop=stop, do_all=do_all, backup=backup, use_sudo=use_sudo)
@@ -57,12 +58,13 @@ def prepend(text, files, pat=1, start=None, stop=None, do_all=False, backup=None
     """
     Prepend text before the pattern, or at beginning of file by default
     :param text: text to insert.  May contain \n to insert multi-line block
-    :param files: files to search. Mulitple files will be processed separately.
+    :param files: files to process. Mulitple files will be processed separately.
     :param pat: search pattern (line number, literal string or compiled regex) [default = eof]
     :param files: files to search
     :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
     :param stop: Limit processing to stop at this pattern (line number, literal string or compiled regex)
     :param do_all: process all lines w/ pattern.
+    :param backup: if specified then a backup file will be created with this suffix appended to the name
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
     """
     _add_line('i', text, files, pat=pat, start=start, stop=stop, do_all=do_all, backup=backup, use_sudo=use_sudo)
@@ -77,6 +79,7 @@ def replace_line(pat, text, files, start=None, stop=None, do_all=False, backup=N
     :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
     :param stop: Limit processing to stop at this pattern (line number, literal string or compiled regex)
     :param do_all: process all lines w/ pattern.
+    :param backup: if specified then a backup file will be created with this suffix appended to the name
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
     """
     _add_line('c', text, files, pat=pat, start=start, stop=stop, do_all=do_all, backup=backup, use_sudo=use_sudo)
@@ -90,6 +93,7 @@ def delete(pat, files, start=None, stop=None, do_all=False, backup=None, use_sud
     :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
     :param stop: Limit processing to stop at this pattern (line number, literal string or compiled regex)
     :param do_all: process all lines w/ pattern.
+    :param backup: if specified then a backup file will be created with this suffix appended to the name
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
     """
     suffix = quote(backup) if backup else ''
@@ -110,6 +114,7 @@ def replace(pat, text, files, start=None, stop=None, do_all=False, backup=None, 
     :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
     :param stop: Limit processing to stop at this pattern (line number, literal string or compiled regex)
     :param do_all: replace every occurrance of the pattern
+    :param backup: if specified then a backup file will be created with this suffix appended to the name
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
     :return:
     """
