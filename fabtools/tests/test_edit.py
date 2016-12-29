@@ -191,6 +191,32 @@ class EditTestCase(unittest.TestCase):
                          [])
 
 
+    def test_commented_out(self):  # not testing with start,stop limits as that's been well tested already
+        from fabtools.edit import commented_out, find, replace
+        # test apply comment to four
+        commented_out('four', self.textfile, True, use_sudo=local)
+        self.assertEqual(find(re.compile('^#four'), self.textfile, use_sudo=local), [4])
+        self.assertEqual(find(re.compile('^#'), self.textfile, use_sudo=local), [4])
+        # test remove comment from four
+        commented_out('four', self.textfile, False, use_sudo=local)
+        self.assertFalse(find(re.compile('#'), self.textfile, use_sudo=local))
+        # test apply alternative comment marker '//'
+        commented_out('six', self.textfile, True, comment_chars='//', use_sudo=local)
+        self.assertEqual(find(re.compile('^//six'), self.textfile, use_sudo=local), [6])
+        # test remove alternative comment marker '//'
+        commented_out('six', self.textfile, False, comment_chars='//', use_sudo=local)
+        self.assertFalse(find(re.compile('/+'), self.textfile, use_sudo=local))
+        # test apply comment to four
+        commented_out(re.compile('f...'), self.textfile, True, use_sudo=local)
+        self.assertEqual(find(re.compile('^#'), self.textfile, use_sudo=local), [4])
+        # test apply comment to four and five w/ four being idempotent
+        commented_out(re.compile('f...'), self.textfile, True, do_all=True, use_sudo=local)
+        self.assertEqual(find(re.compile('^#four'), self.textfile, use_sudo=local), [4])
+        self.assertEqual(find(re.compile('#'), self.textfile, do_all=True, use_sudo=local), [4, 5])
+        # test remove comment from four & five with lines space padded
+        replace(re.compile('^'), '    \t', self.textfile, do_all=True, use_sudo=local)
+        commented_out(re.compile('f...'), self.textfile, False, do_all=True, use_sudo=local)
+        self.assertFalse(find('#', self.textfile, use_sudo=local))
 
 
 class TopLimitedEditTestCase(TopLimitMixin, EditTestCase):

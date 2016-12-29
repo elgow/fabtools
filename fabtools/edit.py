@@ -156,6 +156,35 @@ def capture(pat, files, start=None, stop=None, multi_line=False, do_all=False, u
     return res
 
 
+def commented_out(pat, files, commented=True, comment_chars='#',
+                  start=None, stop=None, do_all=False, backup=None, use_sudo=False):
+    """
+    Comment out or uncomment lines in files
+    :param pat: line number, literal string, or compiled regex
+    :param files: files to process. Multiple files will be concatenated
+    :param commented: True to prepend comment char, False to remove
+    :param comment_chars: string of chars that mark comments, entire string is applied to comment out [default = '#']
+    :param start: Limit processing to start at this pattern (line number, literal string or compiled regex)
+    :param stop: Limit processing to stop at this pattern (line number, literal string or compiled regex)
+    :param do_all: Process all lines w/ pattern.  [defaults to False, so only gets first]
+    :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
+    :param backup: If defined create backup file with value as filname extension
+    :param use_sudo: Use sudo to process the file
+    """
+    assert isinstance(comment_chars, basestring) and len(comment_chars) > 0
+    suffix = quote(backup) if backup else ''
+    delim = _choose_delim(comment_chars)
+    if commented:
+        selector = re.sub(re.compile('^\\^+'), '', _mk_selector(pat))
+        sub_cmd = '{{\\{d}^[ \\t]*[^{cc}]+{d}s{d}^{d}{cc}{d}}}'.format (d=delim, cc=comment_chars)
+    else:
+        selector = _mk_selector(pat)
+        sub_cmd = '{{\\{d}^[ \\t]*[{cc}]+{d}s{d}^([ \\t]*)[{cc}]+{d}\\1{d}}}'.format(d=delim, cc=re.escape(comment_chars))
+    cmd = "%s%s" % (selector, sub_cmd) if do_all else \
+           "%s{%s; b L}; b; :L  {n; b L}" % (selector, sub_cmd)
+    lim_cmd = _mk_limit_sed_cmd(cmd, start=start, stop=stop)
+    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i%s' % suffix, '-s'],  do_all=do_all, use_sudo=use_sudo))
+
 
 ####### Internal functions ###########
 
