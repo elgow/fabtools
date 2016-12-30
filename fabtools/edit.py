@@ -2,7 +2,7 @@
 Edit tools
 ==========
 
-Tools for performing batch edits of files on the target system. Implemended using sed.
+Tools for performing batch edits of files on the target system. Implemented using sed.
 """
 
 from pipes import quote
@@ -27,7 +27,7 @@ def find(pat, files,  start=None, stop=None, multi_line=False, do_all=False, use
     :param multi_line: treat entire file as one line so pattern may contain '\n'
     :param do_all: find all lines w/ pattern. No effect in multi_line mode.
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
-    :return: list of line number(s) where pattern was found, empty list if not found
+    :return: truthy list of line number(s) where pattern was found, falsey empty list if not found
     """
     op = '=' if do_all else '{=;q}'
     cmd = '{sel}{op}'.format(
@@ -40,7 +40,7 @@ def find(pat, files,  start=None, stop=None, multi_line=False, do_all=False, use
 
 def append(text, files, pat=_END, start=None, stop=None, do_all=False, backup=None, use_sudo=False):
     """
-    Append text after the pattern, or at end of file by default
+    Append text after the first line matching the pattern, or at end of file by default
     :param text: text to insert.  May contain \n to insert multi-line block
     :param files: files to process. Mulitple files will be processed separately
     :param pat: search pattern (line number, literal string or compiled regex) [default = eof]
@@ -56,7 +56,7 @@ def append(text, files, pat=_END, start=None, stop=None, do_all=False, backup=No
 
 def prepend(text, files, pat=1, start=None, stop=None, do_all=False, backup=None, use_sudo=False):
     """
-    Prepend text before the pattern, or at beginning of file by default
+    Prepend text before the first line matching the pattern, or at beginning of file by default
     :param text: text to insert.  May contain \n to insert multi-line block
     :param files: files to process. Mulitple files will be processed separately.
     :param pat: search pattern (line number, literal string or compiled regex) [default = eof]
@@ -105,8 +105,8 @@ def delete(pat, files, start=None, stop=None, do_all=False, backup=None, use_sud
 
 def replace(pat, text, files, start=None, stop=None, do_all=False, backup=None, use_sudo=False):
     """
-    Search for text matching the pattern, which may (span multiple lines by using \\n in multi-line mode)
-    and replace it with the given text, which may contain sed backreferences (\\1, etc.)
+    Search for text matching the pattern, which may span multiple lines by using \\n in multi-line mode,
+    and replace it with the given text, which may contain sed backreferences (\1, etc.)
     This differs from replace_line in that it only replaces the match text, not the whole line.
     :param pat: line_number, literal string or compiled regex
     :param text: text to replace
