@@ -132,7 +132,7 @@ class EditTestCase(unittest.TestCase):
         # test basic prepend at head of file
         prepend(text, self.textfile, start=self.start, stop=self.stop, use_sudo=local)
         self.assertEqual(find(text, self.textfile, start=self.start, stop=self.stop, do_all=True, use_sudo=local),
-                         [1, 3] if self.stop else [6] if self.start else [1, 3, 7])
+                         [1, 3] if self.stop else [5] if self.start else [1, 3, 7])
 
 
     def test_append(self):

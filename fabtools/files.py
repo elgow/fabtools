@@ -324,14 +324,13 @@ def hardlink(source, destination, use_sudo=False):
     func('/bin/ln {0} {1}'.format(quote(source), quote(destination)))
 
 
-def remove(path, recursive=False, quiet=False, use_sudo=False):>>>>>>> Stashed changes
+def remove(path, recursive=False, quiet=False, use_sudo=False):
     """
     Remove a file or directory
     """
     func = use_sudo and run_as_root or run
 
-    options = '%s%s%s' % ('-' if recursive or quiet else '', 'r' if recursive else '', 
-    						'f' if quiet else '')
+    options = '%s%s%s' % ('-' if recursive or quiet else '', 'r' if recursive else '', 'f' if quiet else '')
     func('/bin/rm {0}{1}'.format(options, quote(path)))
 
 
