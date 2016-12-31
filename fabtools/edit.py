@@ -102,7 +102,7 @@ def delete(pat, files, start=None, stop=None, do_all=False, backup=None, use_sud
     cmd = "%sd" % (_mk_selector(pat),) if do_all else \
            "%s{d; b L}; b; :L  {n; b L}" % (_mk_selector(pat),)
     lim_cmd = _mk_limit_sed_cmd(cmd, start=start, stop=stop)
-    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i%s' % (suffix,), '-s'], do_all=do_all, use_sudo=use_sudo))
+    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i%s' % (suffix,)], do_all=do_all, use_sudo=use_sudo))
 
 
 def replace(pat, text, files, start=None, stop=None, do_all=False, backup=None, use_sudo=False):
@@ -135,7 +135,7 @@ def replace(pat, text, files, start=None, stop=None, do_all=False, backup=None, 
          else "{addr}{{s{delim}{sel}{delim}{text}{delim}; b L}}; b; :L  {{n; b L}}".format(
             addr=_mk_selector(pat), delim=_choose_delim(sel + text), sel=sel, text=escaped_text)
     lim_cmd = _mk_limit_sed_cmd(cmd, start=start, stop=stop)
-    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i%s' % (suffix,), '-s'],
+    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i%s' % (suffix,)],
                                      do_all=do_all, use_sudo=use_sudo))
 
 
@@ -185,7 +185,7 @@ def commented_out(pat, files, commented=True, comment_chars='#',
     cmd = "%s%s" % (selector, sub_cmd) if do_all else \
            "%s{%s; b L}; b; :L  {n; b L}" % (selector, sub_cmd)
     lim_cmd = _mk_limit_sed_cmd(cmd, start=start, stop=stop)
-    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i%s' % suffix, '-s'],  do_all=do_all, use_sudo=use_sudo))
+    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i%s' % suffix],  do_all=do_all, use_sudo=use_sudo))
 
 
 ####### Internal functions ###########
@@ -202,7 +202,7 @@ def _captured_local(*args, **kwargs):
 
 def _run_func(sudo_arg):
     """
-    Resolve the appropriate run function for fabric to use for normal(run()), sudo(), or local() execution
+    Resolve the appropriate run function for fabric to use for normal(run()), sudo, or local execution
     :param sudo_arg:
     :return: the run function
     """
@@ -281,7 +281,7 @@ def _mk_sed_call(cmd, files, opts=None, inmem=False,  **kwargs):
     """
 
     files = (files,) if isinstance(files, basestring) or isinstance(files, Path) else files
-    return "sed -r {opts} {inmem} -e '{cmd}' {files}".format(
+    return "sed -E {opts} {inmem} -e '{cmd}' {files}".format(
         opts=' '.join(opts) if opts else '',
         inmem="-e '%s'" % _IN_MEMORY if inmem else '',
         cmd=cmd,
@@ -291,12 +291,12 @@ def _mk_sed_call(cmd, files, opts=None, inmem=False,  **kwargs):
 
 def _add_line(op, text, files, pat=_END, start=None, stop=None, do_all=False, backup=None, use_sudo=False):
     """
-    Append text after line matching pattern [defaults to last line]. If do_all is true then every line matching
+    Execute a line-oriented edit operation (a, i, or c). If do_all is true then every line matching
     the pattern will be processed. This function acts on each specified file independently and in-place.
     :param text: text to insert. May contain \n, so block of lines is OK. Sed will process '\' escaped chars.
     :param files: files to process, separately and in-place
     :param pat: pattern to match
-    :param bak: if not empty then a backup file will be created with this extension.
+    :param bak: if not empty then a backup file will be created with this extension or per sed -i backup rules.
     :param do_all: prepend text before every occurrance of the pattern
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
     :return:
@@ -307,6 +307,6 @@ def _add_line(op, text, files, pat=_END, start=None, stop=None, do_all=False, ba
     cmd = "%s%s \\\n%s\n" % (_mk_selector(pat), op, escaped_text) if do_all else \
            "%s{%s \\\n%s\n; b L}; b; :L  {n; b L}" % (_mk_selector(pat), op, escaped_text)
     lim_cmd = _mk_limit_sed_cmd(cmd, start=start, stop=stop)
-    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i%s' % suffix, '-s'],  do_all=do_all, use_sudo=use_sudo))
+    _run_func(use_sudo)(_mk_sed_call(lim_cmd, files, opts=['-i%s' % suffix],  do_all=do_all, use_sudo=use_sudo))
 
 

@@ -281,7 +281,7 @@ def file_contains(text, path, unless=None, after=None, before=None, backup=None,
     path = Path(path)
     assert isinstance(text, basestring), "Text must be a string"
 
-    if unless and find(unless, path, start=after, stop=before, use_sudo=use_sudo):
+    if unless and find(unless, path, start=after, stop=before, multi_line=True, use_sudo=use_sudo):
         return
 
     if not find(text, path,  start=after, stop=before, multi_line=True, use_sudo=use_sudo):
