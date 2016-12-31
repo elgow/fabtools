@@ -129,6 +129,11 @@ class EditTestCase(unittest.TestCase):
         prepend(text, self.textfile, pat='five', start=self.start, stop=self.stop, use_sudo=local)
         self.assertEqual(find(text, self.textfile, start=self.start, stop=self.stop, do_all=True, use_sudo=local),
                          [2] if self.stop else [5] if self.start else [2, 6])
+        # test basic prepend at head of file
+        prepend(text, self.textfile, start=self.start, stop=self.stop, use_sudo=local)
+        self.assertEqual(find(text, self.textfile, start=self.start, stop=self.stop, do_all=True, use_sudo=local),
+                         [1, 3] if self.stop else [6] if self.start else [1, 3, 7])
+
 
     def test_append(self):
         from fabtools.edit import append, find
@@ -136,6 +141,9 @@ class EditTestCase(unittest.TestCase):
         # test basic append after match
         append(text, self.textfile, pat='three', use_sudo=local)
         self.assertEqual(find(text, self.textfile, do_all=True, use_sudo=local), [4])
+        # test most basic append at eof
+        append(text, self.textfile, use_sudo=local)
+        self.assertEqual(find(text, self.textfile, do_all=True, use_sudo=local), [4, 9])
 
 
     def test_delete(self):

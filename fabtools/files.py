@@ -315,10 +315,53 @@ def symlink(source, destination, use_sudo=False):
     func('/bin/ln -s {0} {1}'.format(quote(source), quote(destination)))
 
 
-def remove(path, recursive=False, use_sudo=False):
+def hardlink(source, destination, use_sudo=False):
+    """
+    Create a hardlink to a file. The source cannot be a directory and the destination must be on the same filesystem
+    as the source.
+    """
+    func = use_sudo and run_as_root or run
+    func('/bin/ln {0} {1}'.format(quote(source), quote(destination)))
+
+
+def remove(path, recursive=False, quiet=False, use_sudo=False):>>>>>>> Stashed changes
     """
     Remove a file or directory
     """
     func = use_sudo and run_as_root or run
-    options = '-r ' if recursive else ''
+
+    options = '%s%s%s' % ('-' if recursive or quiet else '', 'r' if recursive else '', 
+    						'f' if quiet else '')
     func('/bin/rm {0}{1}'.format(options, quote(path)))
+
+
+def atomic_replace(src, target, backup_ext=None, follow_symlink=False, use_sudo=False):
+    """
+    Replace target file with src file via an atomic rename operation. Works for files and symlinks, but not directories.
+    but if the
+    :param src: src file or symlink
+    :param target: target file or symlink which will be replaced
+    :param backup_ext: create a backup of the original file with this value appended to the name [default no backup]
+    :param follow_symlink: if True replace target of symlink, if False replace symlink with the src file [default False]
+    :param use_sudo: run using sudo
+    :return: actual path that was replaced
+    """
+    func = run_as_root if use_sudo else run
+    real_target = func("readlink -f '%s'" % target) if follow_symlink else target
+    assert not is_dir(src) and not is_dir(real_target), "Cannot atomically replace directories"
+    real_src = func("readlink -f '%s'" % src)
+    tmp_file = str(Path(real_target).parent / ('%s_fabtools_%s' % (str(Path(real_target).name), str(time()))))
+    if backup_ext:
+        trg_path = Path(real_target)
+        hardlink(real_target, trg_path.with_name(trg_path.name.strip() + backup_ext.strip()), use_sudo=use_sudo)
+
+    if is_link(src, use_sudo=use_sudo):
+        symlink(real_src, tmp_file, use_sudo=use_sudo)
+    elif is_file(src, use_sudo=use_sudo):
+        copy(src, tmp_file, use_sudo=use_sudo)
+    else:
+        raise ValueError('%s is neither a file nor a link')
+
+    move(tmp_file, real_target, use_sudo=use_sudo)
+    remove(tmp_file, quiet=True, use_sudo=use_sudo)
+    return real_target

@@ -12,6 +12,7 @@ from tempfile import mkstemp
 from urlparse import urlparse
 import hashlib
 import os
+from pathlib2 import Path
 
 from fabric.api import hide, put, run, settings
 
@@ -25,6 +26,7 @@ from fabtools.files import (
     umask,
 )
 from fabtools.utils import run_as_root
+from fabtools.edit import find, append, prepend
 
 
 BLOCKSIZE = 2 ** 20  # 1MB
@@ -259,3 +261,33 @@ class TemporaryDirectory(str):
 
     def __exit__(self, type, value, tb):
         run('rm -rf %s' % quote(self))
+
+
+def file_contains(text, path, unless=None, after=None, before=None, backup=None, use_sudo=False):
+    """
+    Ensure that a file exists and contains the supplied text unless a pattern is matched. Conditions can be set
+    on how the text is positioned. A backup file will be created if naming info is specified.
+    :param text: Literal text that will be found or inserted in the file if 'unless' pattern not matched
+    :param path: The file to process as Path or string
+    :param unless: Line number, string or compiled regex that if matched will prevent insertion of the text
+    :param after: Line number, string, or compiled regex that will bound the search for the text/pattern. If text is
+    inserted it will be placed after the first matched line. Supercedes before for insertion
+    :param before: Line number, string, or compiled regex that will bound the search for the text/pattern. If text is
+    inserted and after is not specified then it will go before the matched line.
+    :param backup: Extension (or sed style name string) for making a backup of the file before processing.
+    :param use_sudo:
+    """
+    func = use_sudo and run_as_root or run
+    path = Path(path)
+    assert isinstance(text, basestring), "Text must be a string"
+
+    if unless and find(unless, path, start=after, stop=before, use_sudo=use_sudo):
+        return
+
+    if not find(text, path,  start=after, stop=before, multi_line=True, use_sudo=use_sudo):
+        if after or not before:
+            append(text, path, pat=after, start=after, stop=before, backup=backup, use_sudo=use_sudo)
+        else:
+            prepend(text, path, pat=before, start=after, stop=before, backup=backup, use_sudo=use_sudo)
+
+
