@@ -12,7 +12,7 @@ from fabric.api import *
 
 
 _IN_MEMORY = '1h;2,$H;$!d;g'  # sed magic to do in-memory processing for multi-line pattern search
-_END = re.compile('$')
+_END = 0
 _DELIM_CHARS = {'@', '#', '/', '_', '~', '`'}  # chars for address pattern delimiter auto-selection
 
 
@@ -50,7 +50,8 @@ def append(text, files, pat=_END, start=None, stop=None, do_all=False, backup=No
     :param backup: if specified then a backup file will be created with this suffix appended to the name
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
     """
-    _add_line('a', text, files, pat=pat, start=start, stop=stop, do_all=do_all, backup=backup, use_sudo=use_sudo)
+    _add_line('a', text, files, pat=(pat or _END), start=start, stop=stop, do_all=do_all, backup=backup,
+              use_sudo=use_sudo)
 
 
 
@@ -67,7 +68,7 @@ def prepend(text, files, pat=1, start=None, stop=None, do_all=False, backup=None
     :param backup: if specified then a backup file will be created with this suffix appended to the name
     :param use_sudo: True/False for use of sudo or specify run, sudo, or local from Fabric
     """
-    _add_line('i', text, files, pat=pat, start=start, stop=stop, do_all=do_all, backup=backup, use_sudo=use_sudo)
+    _add_line('i', text, files, pat=(pat or 1), start=start, stop=stop, do_all=do_all, backup=backup, use_sudo=use_sudo)
 
 
 def replace_line(pat, text, files, start=None, stop=None, do_all=False, backup=None, use_sudo=False):
@@ -223,7 +224,7 @@ def _mk_selector(sel):
     if sel is None:
         return ''
     elif type(sel) is int:
-        return str(sel)
+        return str(sel) if sel > 0 else '$'
     elif type(sel) is str:
         pat = re.escape(sel)
         return '\\{0}{1}{0}'.format(_choose_delim(pat), pat)
